@@ -106,6 +106,35 @@ public class TransactionService {
         return mapTransactionResponse(savedTransaction);
     }
 
+    private TransactionResponse withdrawMoney(CreateTransactionRequest request, Account srcAcct, BigDecimal amount, BigDecimal charges){
+        BigDecimal sourceBal = srcAcct.getAvailableBalance();
+        if(sourceBal.compareTo(request.getAmount()) <= 0){
+            log.error("Insufficient balance in account" + request.getSourceAccount());
+            throw new InsufficientFundsException("Insufficient balance in account" + request.getSourceAccount());
+        }
+        BigDecimal currBal = sourceBal.subtract(request.getAmount());
+        Transaction newTransaction = Transaction.builder()
+                .transactionReference(request.getTransactionReference())
+                .transactionType(request.getTransactionType())
+                .transactionStatus(TransactionStatus.SUCCESS)
+                .destinationAccount("Not Applicable")
+                .sourceAccount(request.getSourceAccount())
+                .destBalanceAfter(BigDecimal.ZERO)
+                .destBalanceBefore(BigDecimal.ZERO)
+                .sourceBalanceAfter(currBal)
+                .sourceBalanceBefore(sourceBal)
+                .reversed(false)
+                .acctType(request.getAcctType())
+                .narration(request.getNarration())
+                .charges(charges)
+                .amount(amount)
+                .reversed(false)
+                .build();
+        Transaction savedTransaction = transactionRepository.save(newTransaction);
+        return mapTransactionResponse(savedTransaction);
+
+    }
+
     private TransactionResponse mapTransactionResponse(Transaction transaction){
         return TransactionResponse.builder()
                 .id(transaction.getId())
@@ -160,7 +189,18 @@ public class TransactionService {
     }
 
     @Transactional
-    public void withdraw(){
+    public TransactionResponse withdraw(CreateTransactionRequest request){
+        Account sourceAcct = accountRepository.findByAccountNumber(request.getSourceAccount()).orElseThrow(
+                () -> {
+                    log.error("Source Account not found: " + request.getSourceAccount());
+                    return new AccountNumberException("Source Account not found: " + request.getSourceAccount());
+                });
+        BigDecimal charges = generateCharges(request.getAmount());
+
+        if(request.getTransactionType() != null && request.getTransactionType().equals(TransactionType.WITHDRAWAL)){
+                return withdrawMoney(request, sourceAcct, request.getAmount(), charges);
+        }
+        return null;
     }
 
     @Transactional
