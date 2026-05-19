@@ -1,0 +1,15 @@
+.idea/
+.classpath
+.project
+.settings/
+out/
+*.iml
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
+*.log
+node_modules/
+
+# Ignore build output
+target/
