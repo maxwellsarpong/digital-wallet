@@ -11,6 +11,10 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import com.example.DigitalWallet.repository.UserRepository;
 import com.example.DigitalWallet.utils.PasswordUtil;
@@ -43,6 +47,7 @@ public class UserService {
     /*
         register a user
      */
+    @CacheEvict(value = "users", key = "'all'")
     public UserResponse registerUser(RegisterRequest request){
 
         log.info("User registration started ...");
@@ -72,10 +77,13 @@ public class UserService {
     /*
         Get all the users
     */
-    public List<UserResponse> getAllUsers(){
+    @Cacheable(value = "users", key = "'all'")
+    public List<UserResponse> getAllUsers() {
+
         return userRepository
                 .findAll()
-                .stream().map(this::mapToResponse)
+                .stream()
+                .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
@@ -83,6 +91,7 @@ public class UserService {
     /*
         Get a single user
      */
+    @Cacheable(value = "user", key = "#id")
     public UserResponse getUser(UUID id){
         User user = userRepository.findById(id).orElseThrow(() -> {
             log.error("User not found");
@@ -97,6 +106,10 @@ public class UserService {
     /*
         Update user
     */
+    @Caching(
+            put   = { @CachePut(value = "user", key = "#id") },
+            evict = { @CacheEvict(value = "users", key = "'all'") }
+    )
     public UserResponse updateUser(UUID id, UpdateUserRequest request){
         //check if user exists
         User user = userRepository.findById(id).orElseThrow(()-> {
@@ -141,6 +154,10 @@ public class UserService {
     /*
         Delete a User
      */
+    @Caching(evict = {
+            @CacheEvict(value = "user",  key = "#id"),
+            @CacheEvict(value = "users", key = "'all'")
+    })
     public void deleteUser(UUID id){
         User user = userRepository.findById(id).orElseThrow(
                 ()-> new UserNotFoundException("User not found")

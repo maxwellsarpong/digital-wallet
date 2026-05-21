@@ -12,6 +12,10 @@ import com.example.DigitalWallet.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import com.example.DigitalWallet.repository.AccountRepository;
 
@@ -52,6 +56,7 @@ public class AccountService {
                 .build();
     }
 
+    @CacheEvict(value = "account", key = "'all'")
     public AccountResponse addAccount(CreateAccountRequest request){
         String generatedAcct = generateAccount();
         int attempts = 0;
@@ -83,6 +88,10 @@ public class AccountService {
         return mapAccountResponse(savedAccount);
     }
 
+    @Caching(
+            put    = { @CachePut(value = "account", key = "#id") },
+            evict  = { @CacheEvict(value = "account", key = "'all'") }
+    )
     public AccountResponse updateAccount(UUID id, UpdateAccountRequest request){
         Account currentAccount = accountRepository.findAccountById(id).orElseThrow(
                 ()-> new AccountNumberException("Account number not found")
@@ -103,6 +112,7 @@ public class AccountService {
         return mapAccountResponse(updatedAccount);
     }
 
+    @Cacheable(value = "account", key = "#id")
     public AccountResponse getAnAccount(UUID id){
         Account acct = accountRepository.findAccountById(id).orElseThrow(
                 ()-> new AccountNumberException("Account not found")
@@ -110,6 +120,10 @@ public class AccountService {
         return mapAccountResponse(acct);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "account",   key = "#id"),
+            @CacheEvict(value = "accounts",  key = "'all'")
+    })
     public void deleteAccount(UUID id){
         Account acct = accountRepository.findAccountById(id).orElseThrow(
                 ()-> new AccountNumberException("Account not found")
@@ -117,7 +131,10 @@ public class AccountService {
         accountRepository.delete(acct);
     }
 
+//    @Cacheable(value = true, key = "'all'")
+    @Cacheable(value = "accounts", key = "'all'")
     public List<AccountResponse> getAllAccounts(){
+        log.info("FETCHING FROM DATABASE");
         return accountRepository.findAll().stream().map(this::mapAccountResponse).collect(Collectors.toList());
     }
 }

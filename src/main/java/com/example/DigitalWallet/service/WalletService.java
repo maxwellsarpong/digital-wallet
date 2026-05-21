@@ -14,6 +14,10 @@ import com.example.DigitalWallet.repository.WalletRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -39,9 +43,10 @@ public class WalletService {
                 .build();
     }
 
+    @CacheEvict(value = "wallets", key = "'all'")
     @Transactional
     public WalletResponse createWallet(CreateWalletRequest request){
-        if(request.getWalletNumber().equals(walletRepository.findByWalletNumber(request.getWalletNumber()))){
+        if(walletRepository.findByWalletNumber(request.getWalletNumber()).isPresent()){
             log.error("wallet number: " + request.getWalletNumber() + "already exists");
             throw new WalletFoundException("Wallet Number: " + request.getWalletNumber() + "already exist");
         }
@@ -67,11 +72,13 @@ public class WalletService {
 
     }
 
+    @Cacheable(value = "wallets", key = "'all'")
     @Transactional()
     public List<WalletResponse> getAllWallet(){
         return walletRepository.findAll().stream().map(this::mapWalletResponse).collect(Collectors.toList());
     }
 
+    @Cacheable(value = "wallet", key = "#id")
     @Transactional()
     public WalletResponse getASingleWallet(UUID id){
         Wallet currWallet = walletRepository.findById(id).orElseThrow(
@@ -80,6 +87,10 @@ public class WalletService {
         return mapWalletResponse(currWallet);
     }
 
+    @Caching(
+            put   = { @CachePut(value = "wallet", key = "#id") },
+            evict = { @CacheEvict(value = "wallets", key = "'all'") }
+    )
     public WalletResponse updateWallet(UUID id, UpdateWalletRequest request){
         Wallet currWallet = walletRepository.findById(id).orElseThrow(
                 ()-> new WalletNotFoundException("Wallet not found")
@@ -87,8 +98,8 @@ public class WalletService {
         if(request.getBalance() != null){
             currWallet.setBalance(request.getBalance());
         }
-        if(!request.isLocked()){
-            currWallet.setLocked(false);
+        if(request.isLocked()){
+            currWallet.setLocked(true);
         }
         if(request.getUser() != null){
             currWallet.setUser(request.getUser());
@@ -100,6 +111,10 @@ public class WalletService {
         return mapWalletResponse(newSavedWallet);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "wallet",  key = "#id"),
+            @CacheEvict(value = "wallets", key = "'all'")
+    })
     public void deleteWalletById(UUID id){
         Wallet currWallet = walletRepository.findById(id).orElseThrow(
                 ()-> new WalletNotFoundException("Wallet not found")

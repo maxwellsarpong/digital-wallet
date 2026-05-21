@@ -6,6 +6,7 @@ import com.example.DigitalWallet.enums.WalletStatus;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.*;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,6 +19,8 @@ import java.util.UUID;
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WalletResponse implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private UUID id;
 
     private String walletNumber;

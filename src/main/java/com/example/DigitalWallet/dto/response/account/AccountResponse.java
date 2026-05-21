@@ -6,6 +6,8 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import lombok.*;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -15,7 +17,9 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AccountResponse {
+public class AccountResponse implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private UUID id;
     private String accountNumber;
     private AccountType accountType;

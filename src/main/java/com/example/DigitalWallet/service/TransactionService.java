@@ -18,6 +18,7 @@ import jakarta.transaction.InvalidTransactionException;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.PathVariable;
 
@@ -91,8 +92,8 @@ public class TransactionService {
                 .transactionType(request.getTransactionType())
                 .amount(request.getAmount())
                 .transactionReference(request.getTransactionReference())
-                .sourceBalanceAfter(sourceNewBal)
                 .sourceBalanceBefore(sourceCurrBal)
+                .sourceBalanceAfter(sourceNewBal)
                 .destBalanceAfter(destNewBal)
                 .destBalanceBefore(destCurrBal)
                 .transactionStatus(TransactionStatus.SUCCESS)
@@ -113,6 +114,10 @@ public class TransactionService {
             throw new InsufficientFundsException("Insufficient balance in account" + request.getSourceAccount());
         }
         BigDecimal currBal = sourceBal.subtract(request.getAmount());
+
+        srcAcct.setAvailableBalance(currBal);
+        accountRepository.save(srcAcct);
+
         Transaction newTransaction = Transaction.builder()
                 .transactionReference(request.getTransactionReference())
                 .transactionType(request.getTransactionType())
@@ -132,7 +137,6 @@ public class TransactionService {
                 .build();
         Transaction savedTransaction = transactionRepository.save(newTransaction);
         return mapTransactionResponse(savedTransaction);
-
     }
 
     private TransactionResponse mapTransactionResponse(Transaction transaction){
@@ -167,7 +171,6 @@ public class TransactionService {
         Account sourceAcct = accountRepository.findByAccountNumber(request.getSourceAccount()).orElseThrow(
                 ()-> new AccountNumberException("Account " + request.getSourceAccount() +   "does not exist")
         );
-
 
         BigDecimal charges = generateCharges(request.getAmount());
         BigDecimal totalDeduction = charges.add(request.getAmount());
@@ -206,11 +209,13 @@ public class TransactionService {
     @Transactional
     public void deposit(){}
 
+    @Cacheable(value = "transactions", key = "'all'")
     @Transactional
     public List<TransactionResponse>getAllTransactions(){
         return transactionRepository.findAll().stream().map(this::mapTransactionResponse).collect(Collectors.toList());
     }
 
+    @Cacheable(value = "transactions", key = "#id")
     @Transactional
     public TransactionResponse getASingleTransaction(@PathVariable UUID id){
         Transaction currTransact = transactionRepository.findById(id).orElseThrow(

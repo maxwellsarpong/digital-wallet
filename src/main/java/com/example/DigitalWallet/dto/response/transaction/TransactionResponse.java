@@ -4,10 +4,10 @@ import com.example.DigitalWallet.enums.AccountType;
 import com.example.DigitalWallet.enums.TransactionStatus;
 import com.example.DigitalWallet.enums.TransactionType;
 import jakarta.persistence.Column;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -15,7 +15,11 @@ import java.util.UUID;
 @Getter
 @Setter
 @Builder
-public class TransactionResponse {
+@NoArgsConstructor
+@AllArgsConstructor
+public class TransactionResponse implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private UUID id;
     private String transactionReference;
     private TransactionType transactionType;
