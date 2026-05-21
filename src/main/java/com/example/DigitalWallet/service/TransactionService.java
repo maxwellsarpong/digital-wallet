@@ -87,7 +87,7 @@ public class TransactionService {
         accountRepository.save(sourceAcct);
 
         Transaction newTransaction = Transaction.builder()
-                .acctType(AccountType.CURRENT)
+                .acctType(request.getAcctType())
                 .transactionType(request.getTransactionType())
                 .amount(request.getAmount())
                 .transactionReference(request.getTransactionReference())

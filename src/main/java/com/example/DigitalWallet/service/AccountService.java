@@ -94,9 +94,10 @@ public class AccountService {
         if(request.getAccountType()!=null && !request.getAccountType().equals(currentAccount.getAccountType())){
             currentAccount.setAccountType(request.getAccountType());
         }
-        currentAccount.setAvailableBalance(request.getAvailableBalance());
+        if(request.getAvailableBalance() != null) {
+            currentAccount.setAvailableBalance(request.getAvailableBalance());
+        }
         currentAccount.setUpdatedAt(LocalDateTime.now());
-        currentAccount.setUser(userRel);
 
         Account updatedAccount = accountRepository.save(currentAccount);
         return mapAccountResponse(updatedAccount);
