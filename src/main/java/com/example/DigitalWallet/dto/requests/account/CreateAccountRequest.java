@@ -9,14 +9,18 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
 public class CreateAccountRequest {
     private String accountNumber;
-    @Enumerated(EnumType.STRING)
     private AccountType accountType;
     private BigDecimal availableBalance;
-    @ManyToOne
-    private User user;
+    private String firstName;
+    private String lastName;
+    private UUID userId;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

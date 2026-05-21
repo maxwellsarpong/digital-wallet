@@ -1,6 +1,7 @@
 package com.example.DigitalWallet.entity;
 
 import com.example.DigitalWallet.enums.AccountType;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,7 +28,10 @@ public class Account {
     private AccountType accountType;
 
     private BigDecimal availableBalance = BigDecimal.ZERO;
-    @ManyToOne
+
+    @JsonIgnoreProperties({"accounts", "password", "nationalId"})
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private User user;
 
     private LocalDateTime createdAt;

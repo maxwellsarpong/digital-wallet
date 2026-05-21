@@ -25,7 +25,6 @@ public class UserResponse {
     private String phoneNumber;
 
     private String role;
-    private List<Account> accounts;
 
     private Boolean verified;
 

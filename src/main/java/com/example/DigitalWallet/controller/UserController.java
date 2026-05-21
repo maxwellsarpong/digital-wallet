@@ -3,6 +3,7 @@ package com.example.DigitalWallet.controller;
 import com.example.DigitalWallet.dto.requests.user.RegisterRequest;
 import com.example.DigitalWallet.dto.requests.user.UpdateUserRequest;
 import com.example.DigitalWallet.dto.response.user.UserResponse;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,7 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
+    @Transactional
     @GetMapping
 //    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponse>> getAllUsers(){

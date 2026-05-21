@@ -1,9 +1,11 @@
 package com.example.DigitalWallet.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -46,8 +48,19 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Account> accounts;
+    @JsonIgnore
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY,  orphanRemoval = true)
+    private List<Account> accounts = new ArrayList<>();
+
+    public void addAccount(Account account) {
+        accounts.add(account);
+        account.setUser(this);
+    }
+
+    public void removeAccount(Account account) {
+        accounts.remove(account);
+        account.setUser(null);
+    }
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
