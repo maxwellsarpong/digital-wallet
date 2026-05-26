@@ -5,6 +5,8 @@ import com.example.DigitalWallet.enums.TransactionStatus;
 import com.example.DigitalWallet.enums.TransactionType;
 import lombok.*;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 @Getter
@@ -12,7 +14,9 @@ import java.math.BigDecimal;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class CreateTransactionRequest {
+public class CreateTransactionRequest implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private String transactionReference;
     private TransactionType transactionType;
     private TransactionStatus transactionStatus;

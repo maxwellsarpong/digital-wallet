@@ -24,9 +24,8 @@ public class TransactionController {
     private final TransactionService transactionService;
 
     @PostMapping("/transfer")
-    public ResponseEntity<TransactionResponse> createTransferTransaction(@Valid @RequestBody  CreateTransactionRequest request) throws InvalidTransactionException {
-        TransactionResponse newTransaction = transactionService.transfer(request);
-        return ResponseEntity.ok(newTransaction);
+    public ResponseEntity<String> createTransferTransaction(@Valid @RequestBody  CreateTransactionRequest request) throws InvalidTransactionException {
+        return ResponseEntity.status(HttpStatus.CREATED).body((transactionService.transfer(request)));
     }
 
     @PostMapping("/deposit")
@@ -36,8 +35,8 @@ public class TransactionController {
 
     @PostMapping("/withdraw")
     public ResponseEntity<TransactionResponse> createWithdrawTransaction(@Valid @RequestBody CreateTransactionRequest request){
-        TransactionResponse withDrawal = transactionService.withdraw(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(withDrawal);
+        TransactionResponse withDraw = transactionService.processWithdraw(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(withDraw);
     }
 
     @GetMapping()

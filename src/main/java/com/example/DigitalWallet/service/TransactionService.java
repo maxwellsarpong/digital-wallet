@@ -8,9 +8,11 @@ import com.example.DigitalWallet.entity.Wallet;
 import com.example.DigitalWallet.enums.AccountType;
 import com.example.DigitalWallet.enums.TransactionStatus;
 import com.example.DigitalWallet.enums.TransactionType;
+import com.example.DigitalWallet.event.TransactionEvent;
 import com.example.DigitalWallet.exception.AccountNumberException;
 import com.example.DigitalWallet.exception.InsufficientFundsException;
 import com.example.DigitalWallet.exception.TransactionNotFoundException;
+import com.example.DigitalWallet.producer.TransactionProducer;
 import com.example.DigitalWallet.repository.AccountRepository;
 import com.example.DigitalWallet.repository.TransactionRepository;
 import com.example.DigitalWallet.repository.WalletRepository;
@@ -35,12 +37,13 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private WalletRepository walletRepository;
+    private final TransactionProducer transactionProducer;
 
     private BigDecimal generateCharges(BigDecimal amount){
         return amount.multiply(new BigDecimal("0.005"));
     }
 
-    private TransactionResponse transferToWallet(CreateTransactionRequest request, Account sourceAcct, BigDecimal charges, BigDecimal totalDeduction){
+    private void transferToWallet(CreateTransactionRequest request, Account sourceAcct, BigDecimal charges, BigDecimal totalDeduction){
         Wallet destWallet = walletRepository.findByWalletNumber(request.getDestinationAccount()).orElseThrow(
                 ()-> new AccountNumberException("Account Number not found")
         );
@@ -69,10 +72,10 @@ public class TransactionService {
                 .reversed(false)
                 .build();
         Transaction savedTransaction = transactionRepository.save(newTransaction);
-        return mapTransactionResponse(savedTransaction);
+        mapTransactionResponse(savedTransaction);
     }
 
-    private TransactionResponse transferToAccount(CreateTransactionRequest request, Account sourceAcct, BigDecimal charges, BigDecimal totalDeduction){
+    private void transferToAccount(CreateTransactionRequest request, Account sourceAcct, BigDecimal charges, BigDecimal totalDeduction){
         BigDecimal sourceCurrBal = sourceAcct.getAvailableBalance();
         BigDecimal sourceNewBal = sourceCurrBal.subtract(totalDeduction);
 
@@ -104,7 +107,7 @@ public class TransactionService {
                 .charges(charges)
                 .build();
         Transaction savedTransaction = transactionRepository.save(newTransaction);
-        return mapTransactionResponse(savedTransaction);
+        mapTransactionResponse(savedTransaction);
     }
 
     private TransactionResponse withdrawMoney(CreateTransactionRequest request, Account srcAcct, BigDecimal amount, BigDecimal charges){
@@ -160,14 +163,53 @@ public class TransactionService {
                 .build();
     }
 
+
     @Transactional
-    public TransactionResponse transfer(CreateTransactionRequest request) throws InvalidTransactionException {
+    public String transfer(CreateTransactionRequest request) throws InvalidTransactionException {
+        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0)
+            throw new InsufficientFundsException("Amount must be greater than 0");
+
+        Account sourceAcct = accountRepository.findByAccountNumber(request.getSourceAccount())
+                .orElseThrow(() -> new AccountNumberException(
+                        "Source account not found: " + request.getSourceAccount()));
+
+        BigDecimal charges = generateCharges(request.getAmount());
+        BigDecimal totalDeduction = charges.add(request.getAmount());
+
+        if (sourceAcct.getAvailableBalance().compareTo(totalDeduction) <= 0)
+            throw new InsufficientFundsException("Insufficient funds in account");
+
+        boolean destExists = accountRepository.existsByAccountNumber(request.getDestinationAccount());
+        if (!destExists && !request.getAcctType().equals(AccountType.WALLET))
+            throw new AccountNumberException(
+                    "Destination account not found: " + request.getDestinationAccount());
+
+        if (!request.getTransactionType().equals(TransactionType.TRANSFER))
+            throw new IllegalArgumentException("Invalid transaction type for transfer");
+
+        TransactionEvent event = TransactionEvent.builder()
+            .sourceAccount(request.getSourceAccount())
+            .destinationAccount(request.getDestinationAccount())
+            .amount(request.getAmount())
+            .transactionType(request.getTransactionType())
+            .acctType(request.getAcctType())
+            .narration(request.getNarration())
+            .transactionReference(request.getTransactionReference())
+            .build();
+
+        transactionProducer.publishTransaction(event);
+        log.info("Transaction submitted for processing: {}", request.getNarration());
+        return "Transfer submitted for processing";
+    }
+
+
+    @Transactional
+    public void processTransfer(CreateTransactionRequest request) throws InvalidTransactionException {
         if(request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0){
             throw new InsufficientFundsException("Amount should be greater than 0"+ request.getAmount());
         }
 
         boolean isAcctExist = accountRepository.existsByAccountNumber(request.getDestinationAccount());
-        //verify the source account for the new deposit has money
         Account sourceAcct = accountRepository.findByAccountNumber(request.getSourceAccount()).orElseThrow(
                 ()-> new AccountNumberException("Account " + request.getSourceAccount() +   "does not exist")
         );
@@ -181,10 +223,12 @@ public class TransactionService {
 
         if(request.getTransactionType().equals(TransactionType.TRANSFER) && isAcctExist && !Objects.equals(request.getAmount(), BigDecimal.ZERO)){
             if(request.getAcctType().equals(AccountType.CURRENT) || request.getAcctType().equals(AccountType.SAVINGS)){
-                return transferToAccount(request, sourceAcct, charges, totalDeduction);
+                transferToAccount(request, sourceAcct, charges, totalDeduction);
+                return;
 
             } else if (request.getAcctType().equals(AccountType.WALLET)) {
-                return transferToWallet(request, sourceAcct, charges, totalDeduction);
+                transferToWallet(request, sourceAcct, charges, totalDeduction);
+                return;
             }
         }
         AccountType accountType = request.getAcctType();
@@ -192,7 +236,7 @@ public class TransactionService {
     }
 
     @Transactional
-    public TransactionResponse withdraw(CreateTransactionRequest request){
+    public TransactionResponse processWithdraw(CreateTransactionRequest request){
         Account sourceAcct = accountRepository.findByAccountNumber(request.getSourceAccount()).orElseThrow(
                 () -> {
                     log.error("Source Account not found: " + request.getSourceAccount());
