@@ -8,7 +8,9 @@ import com.example.DigitalWallet.entity.User;
 import com.example.DigitalWallet.enums.AccountType;
 import com.example.DigitalWallet.exception.AccountNumberException;
 import com.example.DigitalWallet.exception.UserNotFoundException;
+import com.example.DigitalWallet.mapper.MapAccountResponse;
 import com.example.DigitalWallet.repository.UserRepository;
+import com.example.DigitalWallet.utils.AccountUtil;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,39 +35,16 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
 
-    private String generateAccount() {
-        String prefix = "20";
-        long randomPart = (long) (Math.random() * 9_000_000_000L) + 1_000_000_000L;
-        return prefix + randomPart;
-    }
-
-    private AccountResponse mapAccountResponse(Account account){
-        if (account.getUser() == null) {
-            throw new IllegalStateException("Account has no associated user: " + account.getId());
-        }
-        return AccountResponse.builder()
-                .id(account.getId())
-                .accountNumber(account.getAccountNumber())
-                .accountType(account.getAccountType())
-                .availableBalance(account.getAvailableBalance())
-                .userId(account.getUser().getId())
-                .firstName(account.getUser().getFirstName())
-                .lastName(account.getUser().getLastName())
-                .createdAt(account.getCreatedAt())
-                .updatedAt(account.getUpdatedAt())
-                .build();
-    }
-
     @CacheEvict(value = "account", key = "'all'")
     public AccountResponse addAccount(CreateAccountRequest request){
-        String generatedAcct = generateAccount();
+        String generatedAcct = AccountUtil.generateAccount();
         int attempts = 0;
 
         while(accountRepository.existsByAccountNumber(generatedAcct)){
             if(++attempts >= 5){
                 throw new AccountNumberException("Could not generate a unique account number");
             }
-            generatedAcct = generateAccount();
+            generatedAcct = AccountUtil.generateAccount();
         }
 
         User userRel = userRepository.findUserById(request.getUserId()).orElseThrow(
@@ -85,7 +64,7 @@ public class AccountService {
 
         userRel.addAccount(newAccount);
         Account savedAccount = accountRepository.save(newAccount);
-        return mapAccountResponse(savedAccount);
+        return MapAccountResponse.mapAccountResponse(savedAccount);
     }
 
     @Caching(
@@ -109,7 +88,7 @@ public class AccountService {
         currentAccount.setUpdatedAt(LocalDateTime.now());
 
         Account updatedAccount = accountRepository.save(currentAccount);
-        return mapAccountResponse(updatedAccount);
+        return MapAccountResponse.mapAccountResponse(updatedAccount);
     }
 
     @Cacheable(value = "account", key = "#id")
@@ -117,7 +96,7 @@ public class AccountService {
         Account acct = accountRepository.findAccountById(id).orElseThrow(
                 ()-> new AccountNumberException("Account not found")
         );
-        return mapAccountResponse(acct);
+        return MapAccountResponse.mapAccountResponse(acct);
     }
 
     @Caching(evict = {
@@ -135,6 +114,6 @@ public class AccountService {
     @Cacheable(value = "accounts", key = "'all'")
     public List<AccountResponse> getAllAccounts(){
         log.info("FETCHING FROM DATABASE");
-        return accountRepository.findAll().stream().map(this::mapAccountResponse).collect(Collectors.toList());
+        return accountRepository.findAll().stream().map(MapAccountResponse::mapAccountResponse).collect(Collectors.toList());
     }
 }

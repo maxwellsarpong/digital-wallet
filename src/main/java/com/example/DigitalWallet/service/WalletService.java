@@ -9,6 +9,7 @@ import com.example.DigitalWallet.enums.WalletStatus;
 import com.example.DigitalWallet.exception.UserNotFoundException;
 import com.example.DigitalWallet.exception.WalletFoundException;
 import com.example.DigitalWallet.exception.WalletNotFoundException;
+import com.example.DigitalWallet.mapper.MapWalletResponse;
 import com.example.DigitalWallet.repository.UserRepository;
 import com.example.DigitalWallet.repository.WalletRepository;
 import jakarta.transaction.Transactional;
@@ -31,17 +32,6 @@ import java.util.stream.Collectors;
 public class WalletService {
     public final WalletRepository walletRepository;
     public final UserRepository userRepository;
-
-    private WalletResponse mapWalletResponse(Wallet request){
-        return WalletResponse.builder()
-                .id(request.getId())
-                .walletNumber(request.getWalletNumber())
-                .balance(request.getBalance())
-                .status(request.getStatus())
-                .locked(false)
-                .userID(request.getUser().getId())
-                .build();
-    }
 
     @CacheEvict(value = "wallets", key = "'all'")
     @Transactional
@@ -68,14 +58,14 @@ public class WalletService {
 
         log.info("Wallet: " + newWallet.getWalletNumber() + "Created");
         Wallet savedWallet = walletRepository.save(newWallet);
-        return mapWalletResponse(savedWallet);
+        return MapWalletResponse.mapWalletResponse(savedWallet);
 
     }
 
     @Cacheable(value = "wallets", key = "'all'")
     @Transactional()
     public List<WalletResponse> getAllWallet(){
-        return walletRepository.findAll().stream().map(this::mapWalletResponse).collect(Collectors.toList());
+        return walletRepository.findAll().stream().map(MapWalletResponse::mapWalletResponse).collect(Collectors.toList());
     }
 
     @Cacheable(value = "wallet", key = "#id")
@@ -84,7 +74,7 @@ public class WalletService {
         Wallet currWallet = walletRepository.findById(id).orElseThrow(
                 ()-> new WalletNotFoundException("Wallet not found")
         );
-        return mapWalletResponse(currWallet);
+        return MapWalletResponse.mapWalletResponse(currWallet);
     }
 
     @Caching(
@@ -108,7 +98,7 @@ public class WalletService {
             currWallet.setStatus(request.getStatus());
         }
         Wallet newSavedWallet = walletRepository.save(currWallet);
-        return mapWalletResponse(newSavedWallet);
+        return MapWalletResponse.mapWalletResponse(newSavedWallet);
     }
 
     @Caching(evict = {

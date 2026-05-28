@@ -7,6 +7,7 @@ import com.example.DigitalWallet.enums.Role;
 import com.example.DigitalWallet.exception.UserAlreadyExistException;
 import com.example.DigitalWallet.exception.UserNotFoundException;
 
+import com.example.DigitalWallet.mapper.MapUserResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
@@ -29,20 +30,6 @@ import java.util.stream.Collectors;
 @Transactional
 public class UserService {
     private final UserRepository userRepository;
-
-    private UserResponse mapToResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .email(user.getEmail())
-                .phoneNumber(user.getPhoneNumber())
-                .active(user.isActive())
-                .verified(user.isVerified())
-                .createdAt(user.getCreatedAt())
-                .role(String.valueOf(user.getRole()))
-                .build();
-    }
 
     /*
         register a user
@@ -70,7 +57,7 @@ public class UserService {
         log.info("New User created ...");
 
         User newUser = userRepository.save(user);
-        return mapToResponse(newUser);
+        return MapUserResponse.mapToResponse(newUser);
     }
 
 
@@ -83,7 +70,7 @@ public class UserService {
         return userRepository
                 .findAll()
                 .stream()
-                .map(this::mapToResponse)
+                .map(MapUserResponse::mapToResponse)
                 .collect(Collectors.toList());
     }
 
@@ -98,7 +85,7 @@ public class UserService {
             return new UserNotFoundException("User not Found");
         }
         );
-        return mapToResponse(user);
+        return MapUserResponse.mapToResponse(user);
 
     }
 
@@ -147,7 +134,7 @@ public class UserService {
         }
 
         User userUpdate = userRepository.save(user);
-        return mapToResponse(userUpdate);
+        return MapUserResponse.mapToResponse(userUpdate);
     }
 
 

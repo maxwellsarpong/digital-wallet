@@ -4,18 +4,20 @@ import com.example.DigitalWallet.config.RabbitMQConfig;
 import com.example.DigitalWallet.dto.requests.transaction.CreateTransactionRequest;
 import com.example.DigitalWallet.event.TransactionEvent;
 import com.example.DigitalWallet.service.TransactionService;
+import com.example.DigitalWallet.service.transaction.TransferService;
 import jakarta.transaction.InvalidTransactionException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class TransactionWorker {
-
-    private final TransactionService transactionService;
+    @Autowired
+    private final TransferService transferService;
 
     @RabbitListener(queues = RabbitMQConfig.TRANSACTION_QUEUE)
     public void processTransaction(TransactionEvent event) {
@@ -31,7 +33,7 @@ public class TransactionWorker {
                     .transactionReference(event.getTransactionReference())
                     .build();
 
-            transactionService.processTransfer(request);
+            transferService.processTransfer(request);
             log.info("Transaction processed successfully: {}", event.getTransactionReference());
 
         } catch (InvalidTransactionException e) {
